@@ -31,6 +31,6 @@ The method accepts raw json content in the request body with the following forma
 
 ## Configuration
 - `-listen` addresses for binding a Web API, for multiple, separate with a comma
-- `-pool-size` number of workers
-- `pool-queue-size` max number of jobs in queue
-- `public-ip` ip from which http request will be sent
+- `-pool-size` number of workers (default: 50)
+- `-pool-queue-size` max number of jobs in queue (default: 10000)
+- `-public-ip` ip from which http request will be sent (default: auto)
