@@ -16,7 +16,7 @@ type route struct {
 	target *net.TCPAddr
 }
 
-var Default, _ = New("")
+var Default = &IpRouter{routes: []route{}}
 
 // Example config:
 //  172.16.0.0/12 -> 172.16.0.1, 0.0.0.0/0 -> 192.168.0.2
@@ -90,7 +90,6 @@ func parseRoute(ipnet, target string) (route, error) {
 		}
 		target0 = &net.TCPAddr{
 			IP:   targetIp,
-			Zone: "tcp",
 			Port: 0,
 		}
 	}

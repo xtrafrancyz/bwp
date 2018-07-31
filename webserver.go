@@ -125,7 +125,7 @@ func unmarshalHttpJobData(iter *jsoniter.Iterator) (*job.HttpData, error) {
 		case "body":
 			rawBody, err := base64.StdEncoding.DecodeString(iter.ReadString())
 			if err != nil {
-				return nil, errors.New("Invalid request. Body must be base64 encoded")
+				return nil, errors.New("invalid request, body must be base64 encoded")
 			}
 			jobData.RawBody = rawBody
 		case "parameters":
@@ -139,6 +139,9 @@ func unmarshalHttpJobData(iter *jsoniter.Iterator) (*job.HttpData, error) {
 				jobData.Headers[name] = iter.ReadString()
 			}
 		}
+	}
+	if jobData.Url == "" {
+		return nil, errors.New("invalid request, url is not set")
 	}
 	if jobData.Method == "" {
 		jobData.Method = "GET"
