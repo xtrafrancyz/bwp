@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/json-iterator/go"
 	"github.com/xtrafrancyz/bwp/job"
@@ -79,7 +80,7 @@ func waitForCtrlC() {
 	endWaiter.Add(1)
 	var signalChan chan os.Signal
 	signalChan = make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-signalChan
 		endWaiter.Done()
