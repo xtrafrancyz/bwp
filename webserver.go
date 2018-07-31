@@ -2,9 +2,12 @@ package main
 
 import (
 	"bytes"
+	"container/list"
 	"encoding/base64"
+	"errors"
 	"time"
 
+	"github.com/json-iterator/go"
 	"github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
 	"github.com/xtrafrancyz/bwp/job"
@@ -72,40 +75,34 @@ func (ws *WebServer) handleStatus(c *routing.Context) error {
 
 func (ws *WebServer) handlePostHttp(c *routing.Context) error {
 	if bytes.Equal(c.Method(), []byte("POST")) {
-		var jobData job.HttpData
+		fc := c.PostBody()[0]
+		if fc != '[' && fc != '{' {
+			return simpleResponse(c, 400, "Invalid json data")
+		}
+
 		iter := json.BorrowIterator(c.PostBody())
-		for field := iter.ReadObject(); field != ""; field = iter.ReadObject() {
-			switch field {
-			case "url":
-				jobData.Url = iter.ReadString()
-			case "method":
-				jobData.Method = iter.ReadString()
-			case "body":
-				rawBody, err := base64.StdEncoding.DecodeString(iter.ReadString())
+		if fc == '[' {
+			jobs := list.New()
+			for iter.ReadArray() {
+				jobData, err := unmarshalHttpJobData(iter)
 				if err != nil {
 					json.ReturnIterator(iter)
-					return simpleResponse(c, 400, "Invalid request. Body must be base64 encoded")
+					return simpleResponse(c, 400, err.Error())
 				}
-				jobData.RawBody = rawBody
-			case "parameters":
-				jobData.Parameters = make(map[string]string)
-				for name := iter.ReadObject(); name != ""; name = iter.ReadObject() {
-					jobData.Parameters[name] = iter.ReadString()
-				}
-			case "headers":
-				jobData.Headers = make(map[string]string)
-				for name := iter.ReadObject(); name != ""; name = iter.ReadObject() {
-					jobData.Headers[name] = iter.ReadString()
-				}
+				jobs.PushBack(jobData)
 			}
+			for e := jobs.Front(); e != nil; e = e.Next() {
+				ws.pool.AddJob("http", *(e.Value.(*job.HttpData)))
+			}
+		} else {
+			jobData, err := unmarshalHttpJobData(iter)
+			if err != nil {
+				json.ReturnIterator(iter)
+				return simpleResponse(c, 400, err.Error())
+			}
+			ws.pool.AddJob("http", *jobData)
 		}
 		json.ReturnIterator(iter)
-
-		if jobData.Method == "" {
-			jobData.Method = "GET"
-		}
-
-		ws.pool.AddJob("http", jobData)
 
 		body, _ := json.Marshal(jobResponse{
 			Success: true,
@@ -115,6 +112,38 @@ func (ws *WebServer) handlePostHttp(c *routing.Context) error {
 		c.SetBody(body)
 	}
 	return nil
+}
+
+func unmarshalHttpJobData(iter *jsoniter.Iterator) (*job.HttpData, error) {
+	var jobData job.HttpData
+	for field := iter.ReadObject(); field != ""; field = iter.ReadObject() {
+		switch field {
+		case "url":
+			jobData.Url = iter.ReadString()
+		case "method":
+			jobData.Method = iter.ReadString()
+		case "body":
+			rawBody, err := base64.StdEncoding.DecodeString(iter.ReadString())
+			if err != nil {
+				return nil, errors.New("Invalid request. Body must be base64 encoded")
+			}
+			jobData.RawBody = rawBody
+		case "parameters":
+			jobData.Parameters = make(map[string]string)
+			for name := iter.ReadObject(); name != ""; name = iter.ReadObject() {
+				jobData.Parameters[name] = iter.ReadString()
+			}
+		case "headers":
+			jobData.Headers = make(map[string]string)
+			for name := iter.ReadObject(); name != ""; name = iter.ReadObject() {
+				jobData.Headers[name] = iter.ReadString()
+			}
+		}
+	}
+	if jobData.Method == "" {
+		jobData.Method = "GET"
+	}
+	return &jobData, nil
 }
 
 func simpleResponse(c *routing.Context, status int, body string) error {
