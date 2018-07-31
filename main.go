@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -11,6 +10,8 @@ import (
 	"syscall"
 
 	"github.com/json-iterator/go"
+	"github.com/vharitonsky/iniflags"
+	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/job"
 	"github.com/xtrafrancyz/bwp/worker"
 )
@@ -21,22 +22,17 @@ func main() {
 	listen := flag.String("listen", "127.0.0.1:7012", "address to bind web server")
 	poolSize := flag.Int("pool-size", 50, "number of workers")
 	poolQueueSize := flag.Int("pool-queue-size", 10000, "max number of queued jobs")
-	publicIp := flag.String("public-ip", "", "ip from which request will be sent")
+	ipRoutes := flag.String("ip-routes", "", "custom ip routing (example: 172.16.0.0/12 -> 172.16.1.1, 0.0.0.0/0 -> auto)")
 
-	flag.Parse()
+	iniflags.Parse()
 
-	var publicAddr *net.TCPAddr = nil
-	if *publicIp != "" {
-		ip, err := net.ResolveIPAddr("ip", *publicIp)
-		if err != nil {
-			println("Invalid public IP: ", err.Error())
-			return
-		}
-		publicAddr = &net.TCPAddr{
-			IP:   ip.IP,
-			Port: 0,
-		}
-		log.Println("Using public IP:", ip.String())
+	ipRouter, err := iprouter.New(*ipRoutes)
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	if ipRouter != iprouter.Default {
+		log.Println("Using routes:", ipRouter)
 	}
 
 	pool := &worker.Pool{
@@ -44,7 +40,7 @@ func main() {
 		QueueSize: *poolQueueSize,
 	}
 	pool.Init()
-	pool.RegisterAction("http", job.NewHttpJobHandler(publicAddr))
+	pool.RegisterAction("http", job.NewHttpJobHandler(ipRouter))
 	pool.RegisterAction("sleep", job.HandleSleep)
 	pool.Start()
 

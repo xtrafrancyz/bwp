@@ -3,8 +3,8 @@
 **BWP** can handle different jobs and proceed them in the background. This will be useful when you need to execute long-time request from php or any other *fast* context without possibility of waiting for a response.
 
 Features:
-- `http` -- Execute http request.
-- `sleep` -- Because why not.
+- Job `http` -- Execute http request.
+- Setup IP from which http requests will be sent.
 
 
 ## Web API
@@ -25,6 +25,7 @@ The method accepts raw json content in the request body with the following forma
   }
 }
 ```
+Multiple requests can also be sent at once using an array.
 
 #### `GET /status` -- Get pool status (active workers, queue length, etc.)
 
@@ -33,4 +34,4 @@ The method accepts raw json content in the request body with the following forma
 - `-listen` addresses for binding a Web API, for multiple, separate with a comma
 - `-pool-size` number of workers (default: 50)
 - `-pool-queue-size` max number of jobs in queue (default: 10000)
-- `-public-ip` ip from which http request will be sent (default: auto)
+- `-ip-routes` ip's from which http request will be sent (example: `172.16.0.0/12 -> 172.16.1.1, 0.0.0.0/0 -> auto`)

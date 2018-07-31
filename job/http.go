@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/valyala/fasthttp"
+	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/worker"
 )
 
@@ -24,8 +25,8 @@ type HttpData struct {
 }
 
 type HttpJobHandler struct {
-	localAddr *net.TCPAddr
-	client    *fasthttp.Client
+	router *iprouter.IpRouter
+	client *fasthttp.Client
 
 	tcpAddrsLock sync.Mutex
 	tcpAddrsMap  map[string]*tcpAddrEntry
@@ -49,9 +50,9 @@ var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
 const dialTimeout = 5 * time.Second
 const defaultDNSCacheDuration = time.Minute
 
-func NewHttpJobHandler(localAddr *net.TCPAddr) worker.JobHandler {
+func NewHttpJobHandler(router *iprouter.IpRouter) worker.JobHandler {
 	h := &HttpJobHandler{
-		localAddr:   localAddr,
+		router:      router,
 		tcpAddrsMap: make(map[string]*tcpAddrEntry),
 	}
 	h.client = &fasthttp.Client{
@@ -149,7 +150,7 @@ func (h *HttpJobHandler) tryDial(network string, addr *net.TCPAddr, deadline tim
 	ch := make(chan dialResult, 1)
 	go func() {
 		var dr dialResult
-		dr.conn, dr.err = net.DialTCP(network, h.localAddr, addr)
+		dr.conn, dr.err = net.DialTCP(network, h.router.GetRoute(addr), addr)
 		ch <- dr
 	}()
 
