@@ -5,6 +5,7 @@
 Features:
 - Job `http` -- Execute http request.
 - Setup IP from which http requests will be sent.
+- Graceful restart from updated binary
 
 
 ## Web API
@@ -32,6 +33,7 @@ Multiple requests can also be sent at once using an array.
 
 ## Configuration
 - `-listen` addresses for binding a Web API, for multiple, separate with a comma
+- `-pidfile` path to pid file
 - `-pool-size` number of workers (default: 50)
 - `-pool-queue-size` max number of jobs in queue (default: 10000)
 - `-ip-routes` ip's from which http request will be sent (example: `172.16.0.0/12 -> 172.16.1.1, 0.0.0.0/0 -> auto`)
