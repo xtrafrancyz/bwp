@@ -45,6 +45,15 @@ func main() {
 		log.Println("Using routes:", ipRouter)
 	}
 
+	if *pidfile != "" {
+		err = writePidFile(*pidfile)
+		if err != nil {
+			log.Printf("Failed to write pidfile %s: %s", *pidfile, err)
+		} else {
+			log.Printf("Pidfile: %s", *pidfile)
+		}
+	}
+
 	pool := &worker.Pool{
 		Size:      *poolSize,
 		QueueSize: *poolQueueSize,
@@ -64,15 +73,6 @@ func main() {
 				log.Printf("Failed to bind listener on %s with %s", host, err.Error())
 			}
 		}(strings.TrimSpace(host))
-	}
-
-	if *pidfile != "" {
-		err = writePidFile(*pidfile)
-		if err != nil {
-			log.Printf("Failed to write pidfile %s: %s", *pidfile, err)
-		} else {
-			log.Printf("Pidfile: %s", *pidfile)
-		}
 	}
 
 	stopChan := make(chan os.Signal, 2)
