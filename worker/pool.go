@@ -2,6 +2,7 @@ package worker
 
 import (
 	"container/list"
+	"log"
 	"sync"
 	"time"
 )
@@ -80,6 +81,7 @@ func (p *Pool) GetActiveWorkers() int {
 }
 
 func (p *Pool) Finish() {
+	log.Println("Finishing all jobs...")
 	p.finish = true
 	for len(p.jobsQueue) != 0 {
 		time.Sleep(50 * time.Millisecond)

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/facebookgo/grace/gracenet"
 	"github.com/json-iterator/go"
 	"github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
@@ -62,7 +63,7 @@ func NewWebServer(pool *worker.Pool) *WebServer {
 	return ws
 }
 
-func (ws *WebServer) Listen(host string) error {
+func (ws *WebServer) Listen(gnet *gracenet.Net, host string) error {
 	var err error
 	var ln net.Listener
 	if host[0] == '/' {
@@ -70,13 +71,13 @@ func (ws *WebServer) Listen(host string) error {
 		if err = os.Remove(host); err != nil && !os.IsNotExist(err) {
 			err = fmt.Errorf("unexpected error when trying to remove unix socket file %q: %s", host, err)
 		}
-		ln, err = net.Listen("unix", host)
+		ln, err = gnet.Listen("unix", host)
 		if err = os.Chmod(host, 0777); err != nil {
 			err = fmt.Errorf("cannot chmod %#o for %q: %s", 0777, host, err)
 		}
 	} else {
 		log.Printf("Listening on http://%s", host)
-		ln, err = net.Listen("tcp4", host)
+		ln, err = gnet.Listen("tcp4", host)
 	}
 	if err != nil {
 		return err
