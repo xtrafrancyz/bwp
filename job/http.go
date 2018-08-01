@@ -106,18 +106,18 @@ func (h *HttpJobHandler) Handle(input interface{}) error {
 		req.SetBodyString(query)
 	}
 
-	ReleaseHttpData(data)
-
 	var res fasthttp.Response
 	err := h.client.DoTimeout(&req, &res, 1*time.Minute)
 	if err != nil {
+		ReleaseHttpData(data)
 		return err
 	}
 
 	if res.StatusCode() >= 400 {
-		return errors.New(fmt.Sprintf("Invalid status code %d from %s %s. Response:\n%s", res.StatusCode(), data.Method, data.Url, string(res.Body())))
+		err = errors.New(fmt.Sprintf("Invalid status code %d from %s %s. Response:\n%s", res.StatusCode(), data.Method, data.Url, string(res.Body())))
 	}
 
+	ReleaseHttpData(data)
 	return nil
 }
 
