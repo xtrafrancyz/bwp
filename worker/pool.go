@@ -2,6 +2,7 @@ package worker
 
 import (
 	"container/list"
+	"sync"
 	"time"
 )
 
@@ -64,10 +65,10 @@ func (p *Pool) AddJob(action string, data interface{}) {
 	if p.finish {
 		return
 	}
-	p.jobsQueue <- &job{
-		action: action,
-		data:   data,
-	}
+	job := acquireJob()
+	job.action = action
+	job.data = data
+	p.jobsQueue <- job
 }
 
 func (p *Pool) GetQueueLength() int {
@@ -98,4 +99,20 @@ func (p *Pool) Finish() {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+var jobPool sync.Pool
+
+func acquireJob() *job {
+	v := jobPool.Get()
+	if v == nil {
+		v = &job{}
+	}
+	return v.(*job)
+}
+
+func releaseJob(v *job) {
+	v.action = ""
+	v.data = nil
+	jobPool.Put(v)
 }

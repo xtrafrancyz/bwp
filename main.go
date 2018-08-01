@@ -48,14 +48,7 @@ func main() {
 
 	for _, host := range strings.Split(*listen, ",") {
 		go func(host string) {
-			var err error
-			if host[0] == '/' {
-				log.Printf("Listening on http://unix:%s", host)
-				err = ws.server.ListenAndServeUNIX(host, 0777)
-			} else {
-				log.Printf("Listening on http://%s", host)
-				err = ws.server.ListenAndServe(host)
-			}
+			err := ws.Listen(host)
 			if err != nil {
 				log.Printf("Failed to bind listener on %s with %s", host, err.Error())
 			}
@@ -64,7 +57,7 @@ func main() {
 
 	waitForCtrlC()
 
-	ws.ShuttingDown = true
+	ws.Finish()
 	log.Printf("Finishing all jobs... Press Ctrl+C again to forcibly exit")
 	pool.Finish()
 

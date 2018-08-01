@@ -16,6 +16,11 @@ import (
 	"github.com/xtrafrancyz/bwp/worker"
 )
 
+var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
+
+const dialTimeout = 5 * time.Second
+const defaultDNSCacheDuration = time.Minute
+
 type HttpData struct {
 	Url        string
 	Method     string
@@ -45,11 +50,6 @@ type dialResult struct {
 	err  error
 }
 
-var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
-
-const dialTimeout = 5 * time.Second
-const defaultDNSCacheDuration = time.Minute
-
 func NewHttpJobHandler(router *iprouter.IpRouter) worker.JobHandler {
 	h := &HttpJobHandler{
 		router:      router,
@@ -65,12 +65,13 @@ func NewHttpJobHandler(router *iprouter.IpRouter) worker.JobHandler {
 }
 
 func (h *HttpJobHandler) Handle(input interface{}) error {
-	data := input.(HttpData)
+	data := input.(*HttpData)
 
 	// Put parameters directly to the url on GET or HEAD requests
 	if (data.Method == "GET" || data.Method == "HEAD") && data.Parameters != nil && len(data.Parameters) != 0 {
 		parsedUrl, err := url.Parse(data.Url)
 		if err != nil {
+			ReleaseHttpData(data)
 			return err
 		}
 		values := parsedUrl.Query()
@@ -104,6 +105,8 @@ func (h *HttpJobHandler) Handle(input interface{}) error {
 		}
 		req.SetBodyString(query)
 	}
+
+	ReleaseHttpData(data)
 
 	var res fasthttp.Response
 	err := h.client.DoTimeout(&req, &res, 1*time.Minute)
@@ -237,4 +240,23 @@ func (h *HttpJobHandler) resolveTCPAddrs(addr string, dualStack bool) ([]net.TCP
 		return nil, errors.New("couldn't find DNS entries for the given domain. Try using DialDualStack")
 	}
 	return addrs, nil
+}
+
+var httpDataPool sync.Pool
+
+func AcquireHttpData() *HttpData {
+	v := httpDataPool.Get()
+	if v == nil {
+		v = &HttpData{}
+	}
+	return v.(*HttpData)
+}
+
+func ReleaseHttpData(v *HttpData) {
+	v.Url = ""
+	v.Headers = nil
+	v.Method = ""
+	v.Parameters = nil
+	v.RawBody = nil
+	httpDataPool.Put(v)
 }

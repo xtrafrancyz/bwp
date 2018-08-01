@@ -46,9 +46,9 @@ func (r *IpRouter) GetRoute(remote *net.TCPAddr) *net.TCPAddr {
 	if remote == nil {
 		return nil
 	}
-	for _, route := range r.routes {
-		if route.net.Contains(remote.IP) {
-			return route.target
+	for idx := range r.routes {
+		if r.routes[idx].net.Contains(remote.IP) {
+			return r.routes[idx].target
 		}
 	}
 	return nil

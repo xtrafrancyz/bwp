@@ -43,4 +43,5 @@ func (w *worker) doJob(job *job) {
 	} else {
 		log.Printf("Unknown job action: %s", job.action)
 	}
+	releaseJob(job)
 }
