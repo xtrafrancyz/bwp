@@ -18,7 +18,7 @@ import (
 
 var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
 
-const dialTimeout = 5 * time.Second
+const dialTimeout = 3 * time.Second
 const defaultDNSCacheDuration = time.Minute
 
 type HttpData struct {
@@ -56,10 +56,10 @@ func NewHttpJobHandler(router *iprouter.IpRouter) worker.JobHandler {
 		tcpAddrsMap: make(map[string]*tcpAddrEntry),
 	}
 	h.client = &fasthttp.Client{
-		Name:         "Background Worker Pool (https://github.com/xtrafrancyz/bwp)",
+		Name:         "bwp (https://github.com/xtrafrancyz/bwp)",
 		Dial:         h.dial,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 5 * time.Second,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	}
 	return h.Handle
 }
@@ -107,7 +107,7 @@ func (h *HttpJobHandler) Handle(input interface{}) error {
 	}
 
 	var res fasthttp.Response
-	err := h.client.DoTimeout(&req, &res, 1*time.Minute)
+	err := h.client.DoTimeout(&req, &res, 10*time.Second)
 	if err != nil {
 		ReleaseHttpData(data)
 		return err
