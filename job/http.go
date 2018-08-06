@@ -2,7 +2,6 @@ package job
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/url"
@@ -16,8 +15,6 @@ import (
 	"github.com/xtrafrancyz/bwp/worker"
 )
 
-var ErrDialTimeout = errors.New("dialing to the given TCP address timed out")
-
 const dialTimeout = 3 * time.Second
 const defaultDNSCacheDuration = time.Minute
 
@@ -30,8 +27,9 @@ type HttpData struct {
 }
 
 type HttpJobHandler struct {
-	router *iprouter.IpRouter
-	client *fasthttp.Client
+	router          *iprouter.IpRouter
+	client          *fasthttp.Client
+	log4xxResponses bool
 
 	tcpAddrsLock sync.Mutex
 	tcpAddrsMap  map[string]*tcpAddrEntry
@@ -50,22 +48,25 @@ type dialResult struct {
 	err  error
 }
 
-func NewHttpJobHandler(router *iprouter.IpRouter) worker.JobHandler {
+func NewHttpJobHandler(router *iprouter.IpRouter, log4xxResponses bool) worker.JobHandler {
 	h := &HttpJobHandler{
-		router:      router,
-		tcpAddrsMap: make(map[string]*tcpAddrEntry),
+		router:          router,
+		log4xxResponses: log4xxResponses,
+		tcpAddrsMap:     make(map[string]*tcpAddrEntry),
 	}
 	h.client = &fasthttp.Client{
-		Name:         "bwp (https://github.com/xtrafrancyz/bwp)",
-		Dial:         h.dial,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 3 * time.Second,
+		Name:                "bwp (https://github.com/xtrafrancyz/bwp)",
+		Dial:                h.dial,
+		ReadTimeout:         10 * time.Second,
+		WriteTimeout:        3 * time.Second,
+		MaxResponseBodySize: 256 * 1024, // 256kb
 	}
 	return h.Handle
 }
 
 func (h *HttpJobHandler) Handle(input interface{}) error {
 	data := input.(*HttpData)
+	start := time.Now()
 
 	// Put parameters directly to the url on GET or HEAD requests
 	if (data.Method == "GET" || data.Method == "HEAD") && data.Parameters != nil && len(data.Parameters) != 0 {
@@ -83,9 +84,8 @@ func (h *HttpJobHandler) Handle(input interface{}) error {
 		data.Url = parsedUrl.String()
 	}
 
-	log.Printf("JOB-HTTP: %s %s", data.Method, data.Url)
-
-	var req fasthttp.Request
+	req := fasthttp.AcquireRequest()
+	res := fasthttp.AcquireResponse()
 	req.Header.SetMethod(data.Method)
 	req.SetRequestURI(data.Url)
 	if data.Headers != nil {
@@ -105,18 +105,33 @@ func (h *HttpJobHandler) Handle(input interface{}) error {
 		}
 		req.SetBodyString(query)
 	}
+	if data.Method == "HEAD" {
+		res.SkipBody = true
+	}
 
-	var res fasthttp.Response
-	err := h.client.DoTimeout(&req, &res, 10*time.Second)
+	err := h.client.DoTimeout(req, res, 10*time.Second)
+	elapsed := time.Since(start).Round(100 * time.Microsecond)
+
 	if err != nil {
-		ReleaseHttpData(data)
-		return err
+		if err == fasthttp.ErrTimeout {
+			log.Printf("http: %v %v %v timeout", elapsed, data.Method, data.Url)
+		} else if err == fasthttp.ErrDialTimeout {
+			log.Printf("http: %v %v %v dial timeout", elapsed, data.Method, data.Url)
+		} else {
+			log.Printf("http: %v %v %v error: %s", elapsed, data.Method, data.Url, err.Error())
+		}
+	} else if h.log4xxResponses && res.StatusCode() >= 400 && !res.SkipBody {
+		logLength := len(res.Body())
+		if logLength > 3000 {
+			logLength = 3000
+		}
+		log.Printf("http: %v %v %v %v %v, Response:\n%s", elapsed, data.Method, data.Url, res.StatusCode(), len(res.Body()), res.Body()[0:logLength])
+	} else {
+		log.Printf("http: %v %v %v %v %v", elapsed, data.Method, data.Url, res.StatusCode(), len(res.Body()))
 	}
 
-	if res.StatusCode() >= 400 {
-		err = errors.New(fmt.Sprintf("Invalid status code %d from %s %s. Response:\n%s", res.StatusCode(), data.Method, data.Url, string(res.Body())))
-	}
-
+	fasthttp.ReleaseRequest(req)
+	fasthttp.ReleaseResponse(res)
 	ReleaseHttpData(data)
 	return nil
 }
@@ -135,7 +150,7 @@ func (h *HttpJobHandler) dial(addr string) (net.Conn, error) {
 		if err == nil {
 			return conn, nil
 		}
-		if err == ErrDialTimeout {
+		if err == fasthttp.ErrDialTimeout {
 			return nil, err
 		}
 		idx++
@@ -147,7 +162,7 @@ func (h *HttpJobHandler) dial(addr string) (net.Conn, error) {
 func (h *HttpJobHandler) tryDial(network string, addr *net.TCPAddr, deadline time.Time) (net.Conn, error) {
 	timeout := -time.Since(deadline)
 	if timeout <= 0 {
-		return nil, ErrDialTimeout
+		return nil, fasthttp.ErrDialTimeout
 	}
 
 	ch := make(chan dialResult, 1)
@@ -168,7 +183,7 @@ func (h *HttpJobHandler) tryDial(network string, addr *net.TCPAddr, deadline tim
 		conn = dr.conn
 		err = dr.err
 	case <-tc.C:
-		err = ErrDialTimeout
+		err = fasthttp.ErrDialTimeout
 	}
 
 	return conn, err

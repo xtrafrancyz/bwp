@@ -38,7 +38,7 @@ func (w *worker) doJob(job *job) {
 
 	if handler, ok := w.pool.handlers[job.action]; ok {
 		if err := handler(job.data); err != nil {
-			log.Printf("Job(%s) is failed: %s", job.action, err.Error())
+			log.Printf("%s is failed: %s", job.action, err.Error())
 		}
 	} else {
 		log.Printf("Unknown job action: %s", job.action)

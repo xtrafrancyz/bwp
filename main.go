@@ -33,6 +33,7 @@ func main() {
 	pidfile := flag.String("pidfile", "", "path to pid file")
 	poolQueueSize := flag.Int("pool-queue-size", 10000, "max number of queued jobs")
 	ipRoutes := flag.String("ip-routes", "", "custom ip routing (example: 172.16.0.0/12 -> 172.16.1.1, 0.0.0.0/0 -> auto)")
+	log4xxResponses := flag.Bool("log4xxResponses", false, "log http responses with status code >= 400")
 
 	iniflags.Parse()
 
@@ -59,7 +60,7 @@ func main() {
 		QueueSize: *poolQueueSize,
 	}
 	pool.Init()
-	pool.RegisterAction("http", job.NewHttpJobHandler(ipRouter))
+	pool.RegisterAction("http", job.NewHttpJobHandler(ipRouter, *log4xxResponses))
 	pool.RegisterAction("sleep", job.HandleSleep)
 	pool.Start()
 
