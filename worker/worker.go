@@ -1,17 +1,19 @@
 package worker
 
-import "log"
+import (
+	"log"
+	"sync"
+)
 
 type worker struct {
 	pool     *Pool
 	jobsChan chan *job
-	quit     chan bool
-	finished bool
+	quit     chan *sync.WaitGroup
 }
 
 func (w *worker) start() {
 	w.jobsChan = make(chan *job, 1)
-	w.quit = make(chan bool, 1)
+	w.quit = make(chan *sync.WaitGroup, 1)
 
 	go func() {
 		for {
@@ -21,8 +23,8 @@ func (w *worker) start() {
 			case job := <-w.jobsChan:
 				w.doJob(job)
 
-			case <-w.quit:
-				w.finished = true
+			case wg := <-w.quit:
+				wg.Done()
 				return
 			}
 		}

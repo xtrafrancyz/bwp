@@ -44,16 +44,12 @@ func (p *Pool) Start() {
 	}
 
 	go func() {
-		for {
-			select {
-			// Wait for the jobs
-			case job := <-p.jobsQueue:
-				// Wait for the free worker
-				w := <-p.freeWorkers
+		for job := range p.jobsQueue {
+			// Wait for the free worker
+			w := <-p.freeWorkers
 
-				// Send jot to worker
-				w.jobsChan <- job
-			}
+			// Send job to worker
+			w.jobsChan <- job
 		}
 	}()
 }
@@ -86,21 +82,12 @@ func (p *Pool) Finish() {
 	for len(p.jobsQueue) != 0 {
 		time.Sleep(50 * time.Millisecond)
 	}
+	wg := &sync.WaitGroup{}
+	wg.Add(p.Size)
 	for e := p.workers.Front(); e != nil; e = e.Next() {
-		e.Value.(*worker).quit <- true
+		e.Value.(*worker).quit <- wg
 	}
-	for {
-		working := false
-		for e := p.workers.Front(); e != nil; e = e.Next() {
-			if !e.Value.(*worker).finished {
-				working = true
-			}
-		}
-		if !working {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	wg.Wait()
 }
 
 var jobPool sync.Pool

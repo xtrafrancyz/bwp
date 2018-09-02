@@ -3,6 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/facebookgo/grace/gracenet"
+	"github.com/json-iterator/go"
+	"github.com/vharitonsky/iniflags"
+	"github.com/xtrafrancyz/bwp/iprouter"
+	"github.com/xtrafrancyz/bwp/job"
+	"github.com/xtrafrancyz/bwp/worker"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,13 +17,6 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-
-	"github.com/facebookgo/grace/gracenet"
-	"github.com/json-iterator/go"
-	"github.com/vharitonsky/iniflags"
-	"github.com/xtrafrancyz/bwp/iprouter"
-	"github.com/xtrafrancyz/bwp/job"
-	"github.com/xtrafrancyz/bwp/worker"
 )
 
 //noinspection GoUnusedGlobalVariable
@@ -76,6 +75,10 @@ func main() {
 		}(strings.TrimSpace(host))
 	}
 
+	waitForSignals(ws, pool, gnet)
+}
+
+func waitForSignals(ws *WebServer, pool *worker.Pool, gnet *gracenet.Net) {
 	stopChan := make(chan os.Signal, 2)
 	reloadChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
