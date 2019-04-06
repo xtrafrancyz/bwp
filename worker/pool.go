@@ -2,9 +2,15 @@ package worker
 
 import (
 	"container/list"
+	"errors"
 	"log"
 	"sync"
 	"time"
+)
+
+var (
+	ErrPoolClosed = errors.New("pool is closed")
+	ErrQueueFull  = errors.New("queue is full")
 )
 
 type Pool struct {
@@ -58,14 +64,19 @@ func (p *Pool) RegisterAction(action string, handler JobHandler) {
 	p.handlers[action] = handler
 }
 
-func (p *Pool) AddJob(action string, data interface{}) {
+func (p *Pool) AddJob(action string, data interface{}) error {
 	if p.finish {
-		return
+		return ErrPoolClosed
 	}
 	job := acquireJob()
 	job.action = action
 	job.data = data
-	p.jobsQueue <- job
+	select {
+	case p.jobsQueue <- job:
+	default:
+		return ErrQueueFull
+	}
+	return nil
 }
 
 func (p *Pool) GetQueueLength() int {

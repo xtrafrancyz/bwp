@@ -3,12 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/facebookgo/grace/gracenet"
-	"github.com/json-iterator/go"
-	"github.com/vharitonsky/iniflags"
-	"github.com/xtrafrancyz/bwp/iprouter"
-	"github.com/xtrafrancyz/bwp/job"
-	"github.com/xtrafrancyz/bwp/worker"
 	"io/ioutil"
 	"log"
 	"os"
@@ -17,6 +11,13 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+
+	"github.com/facebookarchive/grace/gracenet"
+	"github.com/json-iterator/go"
+	"github.com/vharitonsky/iniflags"
+	"github.com/xtrafrancyz/bwp/iprouter"
+	"github.com/xtrafrancyz/bwp/job"
+	"github.com/xtrafrancyz/bwp/worker"
 )
 
 //noinspection GoUnusedGlobalVariable

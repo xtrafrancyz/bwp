@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/facebookgo/grace/gracenet"
+	"github.com/facebookarchive/grace/gracenet"
 	"github.com/json-iterator/go"
 	"github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
@@ -32,7 +32,7 @@ type jobResponse struct {
 
 var (
 	jobResponseSuccess = jobResponse{true}
-	POST               = []byte("POST")
+	postStr            = []byte("POST")
 )
 
 type statusResponse struct {
@@ -83,13 +83,12 @@ func (ws *WebServer) Listen(gnet *gracenet.Net, host string) error {
 		return err
 	}
 	ws.listeners.PushBack(ln)
-	ws.server.Serve(ln)
-	return nil
+	return ws.server.Serve(ln)
 }
 
 func (ws *WebServer) Finish() {
 	for e := ws.listeners.Front(); e != nil; e = e.Next() {
-		e.Value.(net.Listener).Close()
+		_ = e.Value.(net.Listener).Close()
 	}
 }
 
@@ -107,40 +106,44 @@ func (ws *WebServer) handleStatus(c *routing.Context) error {
 }
 
 func (ws *WebServer) handlePostHttp(c *routing.Context) error {
-	if bytes.Equal(c.Method(), POST) {
+	if bytes.Equal(c.Method(), postStr) {
 		body := c.PostBody()
 		if body == nil || len(body) < 2 {
-			return simpleResponse(c, 400, "Invalid post body")
+			return nilError(c, 400, "Invalid post body")
 		}
 		fc := body[0]
 		if fc != '[' && fc != '{' {
-			return simpleResponse(c, 400, "Invalid json data")
+			return nilError(c, 400, "Invalid json data")
 		}
 
 		iter := json.BorrowIterator(body)
+		defer json.ReturnIterator(iter)
 		if fc == '[' {
 			jobs := acquireList()
 			for iter.ReadArray() {
 				jobData, err := unmarshalHttpJobData(iter)
 				if err != nil {
-					json.ReturnIterator(iter)
-					return simpleResponse(c, 400, err.Error())
+					return nilError(c, 400, err.Error())
 				}
 				jobs.PushBack(jobData)
 			}
 			for e := jobs.Front(); e != nil; e = e.Next() {
-				ws.pool.AddJob("http", e.Value.(*job.HttpData))
+				err := ws.pool.AddJob("http", e.Value.(*job.HttpData))
+				if err != nil {
+					return nilError(c, 503, err.Error())
+				}
 			}
 			releaseList(jobs)
 		} else {
 			jobData, err := unmarshalHttpJobData(iter)
 			if err != nil {
-				json.ReturnIterator(iter)
-				return simpleResponse(c, 400, err.Error())
+				return nilError(c, 400, err.Error())
 			}
-			ws.pool.AddJob("http", jobData)
+			err = ws.pool.AddJob("http", jobData)
+			if err != nil {
+				return nilError(c, 503, err.Error())
+			}
 		}
-		json.ReturnIterator(iter)
 
 		response, _ := json.Marshal(jobResponseSuccess)
 		c.SetStatusCode(200)
@@ -187,9 +190,8 @@ func unmarshalHttpJobData(iter *jsoniter.Iterator) (*job.HttpData, error) {
 	return jobData, nil
 }
 
-func simpleResponse(c *routing.Context, status int, body string) error {
-	c.SetStatusCode(status)
-	c.SetBodyString(body)
+func nilError(c *routing.Context, status int, body string) error {
+	c.Error(body, status)
 	return nil
 }
 

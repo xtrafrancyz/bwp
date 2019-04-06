@@ -33,6 +33,7 @@ func (w *worker) start() {
 
 func (w *worker) doJob(job *job) {
 	defer func() {
+		releaseJob(job)
 		if r := recover(); r != nil {
 			log.Printf("panic in job %s: %s", job.action, r)
 		}
@@ -45,5 +46,4 @@ func (w *worker) doJob(job *job) {
 	} else {
 		log.Printf("Unknown job action: %s", job.action)
 	}
-	releaseJob(job)
 }
