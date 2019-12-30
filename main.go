@@ -17,6 +17,7 @@ import (
 	"github.com/vharitonsky/iniflags"
 	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/job"
+	httpJob "github.com/xtrafrancyz/bwp/job/http"
 	"github.com/xtrafrancyz/bwp/worker"
 )
 
@@ -60,7 +61,7 @@ func main() {
 		QueueSize: *poolQueueSize,
 	}
 	pool.Init()
-	pool.RegisterAction("http", job.NewHttpJobHandler(ipRouter, *log4xxResponses))
+	pool.RegisterAction("http", httpJob.NewJobHandler(ipRouter, *log4xxResponses))
 	pool.RegisterAction("sleep", job.HandleSleep)
 	pool.Start()
 

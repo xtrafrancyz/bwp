@@ -28,6 +28,24 @@ The method accepts raw json content in the request body with the following forma
 ```
 Multiple requests can also be sent at once using an array.
 
+There is another way to send multiple requests:
+```D
+{
+  "method": "POST",
+  "body": "eyJoZWxsbyI6IndvcmxkIn0=",
+  "headers": {"X-Sender": "me"},
+  "clones": [{
+    "url": "https://first-secret-domain.com",
+    "headers": {"X-Secret": "puppies"}
+  }, {
+    "url": "https://second-secret-domain.com",
+    "headers": {"X-Secret": "kittens"}
+  }]
+}
+```
+As a result of the above request, bwp will send 2 http requests to `https://first-secret-domain.com` and `https://second-secret-domain.com`
+with the same body from the parent request.
+
 #### `GET /status` -- Get pool status (active workers, queue length, etc.)
 
 
