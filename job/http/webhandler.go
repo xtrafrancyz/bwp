@@ -22,7 +22,7 @@ var (
 )
 
 func (h *webHandler) handlePostHttp(ctx *fasthttp.RequestCtx) {
-	var body []byte
+	body := ctx.Request.Body()
 	if value := ctx.Request.Header.Peek(fasthttp.HeaderContentEncoding); value != nil {
 		enc := string(value)
 		var err error
@@ -36,8 +36,6 @@ func (h *webHandler) handlePostHttp(ctx *fasthttp.RequestCtx) {
 				ctx.Error(err.Error(), 400)
 				return
 			}
-		} else {
-			body = ctx.Request.Body()
 		}
 	}
 
