@@ -21,7 +21,7 @@ type Pool struct {
 
 	handlers    map[string]JobHandler
 	finish      bool
-	jobsQueue   chan *job
+	jobsQueue   chan job
 	freeWorkers chan *worker
 	workers     *list.List
 }
@@ -35,7 +35,7 @@ type JobHandler = func(interface{}) error
 
 func (p *Pool) Init() {
 	p.handlers = make(map[string]JobHandler)
-	p.jobsQueue = make(chan *job, p.QueueSize)
+	p.jobsQueue = make(chan job, p.QueueSize)
 	p.freeWorkers = make(chan *worker, p.Size)
 	p.workers = list.New()
 }
@@ -68,11 +68,11 @@ func (p *Pool) AddJob(action string, data interface{}) error {
 	if p.finish {
 		return ErrPoolClosed
 	}
-	job := acquireJob()
-	job.action = action
-	job.data = data
 	select {
-	case p.jobsQueue <- job:
+	case p.jobsQueue <- job{
+		action: action,
+		data:   data,
+	}:
 	default:
 		return ErrQueueFull
 	}
@@ -99,20 +99,4 @@ func (p *Pool) Finish() {
 		e.Value.(*worker).quit <- wg
 	}
 	wg.Wait()
-}
-
-var jobPool sync.Pool
-
-func acquireJob() *job {
-	v := jobPool.Get()
-	if v == nil {
-		v = &job{}
-	}
-	return v.(*job)
-}
-
-func releaseJob(v *job) {
-	v.action = ""
-	v.data = nil
-	jobPool.Put(v)
 }

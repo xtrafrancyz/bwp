@@ -7,12 +7,12 @@ import (
 
 type worker struct {
 	pool     *Pool
-	jobsChan chan *job
+	jobsChan chan job
 	quit     chan *sync.WaitGroup
 }
 
 func (w *worker) start() {
-	w.jobsChan = make(chan *job, 1)
+	w.jobsChan = make(chan job, 1)
 	w.quit = make(chan *sync.WaitGroup, 1)
 
 	go func() {
@@ -31,9 +31,8 @@ func (w *worker) start() {
 	}()
 }
 
-func (w *worker) doJob(job *job) {
+func (w *worker) doJob(job job) {
 	defer func() {
-		releaseJob(job)
 		if r := recover(); r != nil {
 			log.Printf("panic in job %s: %s", job.action, r)
 		}
