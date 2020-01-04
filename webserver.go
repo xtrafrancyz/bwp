@@ -35,6 +35,10 @@ func NewWebServer(pool *worker.Pool) *WebServer {
 	}
 
 	r := router.New()
+	r.PanicHandler = func(ctx *fasthttp.RequestCtx, val interface{}) {
+		log.Println("panic:", val)
+		ctx.Error("Internal Server Error", 500)
+	}
 	r.POST("/post/http", httpJob.WebHandler(pool))
 	r.GET("/status", ws.handleStatus)
 	r.HandleMethodNotAllowed = true
