@@ -85,7 +85,6 @@ func waitForSignals(ws *WebServer, pool *worker.Pool, gnet *gracenet.Net) {
 	stopChan := make(chan os.Signal, 2)
 	reloadChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
-	signal.Notify(reloadChan, syscall.SIGHUP)
 	if runtime.GOOS == "linux" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "386") {
 		signal.Notify(reloadChan, syscall.Signal(12)) // SIGUSR2
 	}
