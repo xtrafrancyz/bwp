@@ -26,12 +26,13 @@ var (
 	json = jsoniter.ConfigFastest
 	// Is the program started from the facebookgo/grace
 	didInherit = os.Getenv("LISTEN_FDS") != ""
+
+	pidfile = flag.String("pidfile", "", "path to pid file")
 )
 
 func main() {
 	listen := flag.String("listen", "127.0.0.1:7012", "address to bind web server")
 	poolSize := flag.Int("pool-size", 50, "number of workers")
-	pidfile := flag.String("pidfile", "", "path to pid file")
 	poolQueueSize := flag.Int("pool-queue-size", 10000, "max number of queued jobs")
 	ipRoutes := flag.String("ip-routes", "", "custom ip routing (example: 172.16.0.0/12 -> 172.16.1.1, 0.0.0.0/0 -> auto)")
 	log4xxResponses := flag.Bool("log4xxResponses", false, "log http responses with status code >= 400")
@@ -84,6 +85,7 @@ func waitForSignals(ws *WebServer, pool *worker.Pool, gnet *gracenet.Net) {
 	stopChan := make(chan os.Signal, 2)
 	reloadChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(reloadChan, syscall.SIGHUP)
 	if runtime.GOOS == "linux" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "386") {
 		signal.Notify(reloadChan, syscall.Signal(12)) // SIGUSR2
 	}
@@ -100,6 +102,9 @@ func waitForSignals(ws *WebServer, pool *worker.Pool, gnet *gracenet.Net) {
 				ws.Finish()
 				pool.Finish()
 				log.Println("Bye!")
+				if *pidfile != "" {
+					_ = os.Remove(*pidfile)
+				}
 				os.Exit(0)
 			}()
 		case <-reloadChan:
