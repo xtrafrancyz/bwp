@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fasthttp"
 	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/worker"
@@ -25,6 +26,16 @@ type jobHandler struct {
 	client          *fasthttp.Client
 	log4xxResponses bool
 }
+
+var (
+	mRequestsOut = metrics.NewCounter("http_requests")
+	m2xx         = metrics.NewCounter(`http_status{code="2xx"}`)
+	m3xx         = metrics.NewCounter(`http_status{code="3xx"}`)
+	m4xx         = metrics.NewCounter(`http_status{code="4xx"}`)
+	m5xx         = metrics.NewCounter(`http_status{code="5xx"}`)
+	mTimeouts    = metrics.NewCounter(`http_timeouts`)
+	mErrors      = metrics.NewCounter(`http_error`)
+)
 
 func NewJobHandler(router *iprouter.IpRouter, log4xxResponses bool) worker.JobHandler {
 	h := &jobHandler{
@@ -89,22 +100,37 @@ func (h *jobHandler) handle(input interface{}) error {
 	err := h.client.DoTimeout(req, res, 10*time.Second)
 	elapsed := time.Since(start).Round(100 * time.Microsecond)
 
+	code := res.StatusCode()
 	if err != nil {
 		if err == fasthttp.ErrTimeout {
 			log.Printf("http: %v %v %v timeout", elapsed, data.method, data.url)
+			mTimeouts.Inc()
 		} else if err == fasthttp.ErrDialTimeout {
 			log.Printf("http: %v %v %v dial timeout", elapsed, data.method, data.url)
+			mTimeouts.Inc()
 		} else {
 			log.Printf("http: %v %v %v error: %s", elapsed, data.method, data.url, err.Error())
+			mErrors.Inc()
 		}
-	} else if h.log4xxResponses && res.StatusCode() >= 400 && !res.SkipBody {
+	} else if h.log4xxResponses && code >= 400 && !res.SkipBody {
 		logLength := len(res.Body())
 		if logLength > 3000 {
 			logLength = 3000
 		}
-		log.Printf("http: %v %v %v %v %v, Response:\n%s", elapsed, data.method, data.url, res.StatusCode(), len(res.Body()), res.Body()[0:logLength])
+		log.Printf("http: %v %v %v %v %v, Response:\n%s", elapsed, data.method, data.url, code, len(res.Body()), res.Body()[0:logLength])
 	} else {
-		log.Printf("http: %v %v %v %v %v", elapsed, data.method, data.url, res.StatusCode(), len(res.Body()))
+		log.Printf("http: %v %v %v %v %v", elapsed, data.method, data.url, code, len(res.Body()))
+	}
+
+	mRequestsOut.Inc()
+	if code >= 500 {
+		m5xx.Inc()
+	} else if code >= 400 {
+		m4xx.Inc()
+	} else if code >= 300 {
+		m3xx.Inc()
+	} else if code >= 200 {
+		m2xx.Inc()
 	}
 
 	fasthttp.ReleaseRequest(req)

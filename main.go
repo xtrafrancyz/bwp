@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/facebookarchive/grace/gracenet"
 	"github.com/json-iterator/go"
 	"github.com/vharitonsky/iniflags"
@@ -65,6 +66,13 @@ func main() {
 	pool.RegisterAction("http", httpJob.NewJobHandler(ipRouter, *log4xxResponses))
 	pool.RegisterAction("sleep", job.HandleSleep)
 	pool.Start()
+
+	metrics.NewGauge(`queue_size`, func() float64 {
+		return float64(pool.GetQueueLength())
+	})
+	metrics.NewGauge(`busy_workers`, func() float64 {
+		return float64(pool.GetActiveWorkers())
+	})
 
 	ws := NewWebServer(pool)
 	gnet := &gracenet.Net{}

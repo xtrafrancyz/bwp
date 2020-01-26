@@ -3,6 +3,7 @@ module github.com/xtrafrancyz/bwp
 go 1.13
 
 require (
+	github.com/VictoriaMetrics/metrics v1.10.0
 	github.com/facebookarchive/grace v0.0.0-20180706040059-75cf19382434
 	github.com/facebookgo/ensure v0.0.0-20160127193407-b4ab57deab51 // indirect
 	github.com/facebookgo/freeport v0.0.0-20150612182905-d4adf43b75b9 // indirect

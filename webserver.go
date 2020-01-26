@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/facebookarchive/grace/gracenet"
 	"github.com/fasthttp/router"
 	"github.com/valyala/fasthttp"
@@ -21,12 +22,9 @@ type WebServer struct {
 	listeners *list.List
 }
 
-type statusResponse struct {
-	QueueLimit    int `json:"queueLimit"`
-	Workers       int `json:"workers"`
-	ActiveWorkers int `json:"activeWorkers"`
-	JobsInQueue   int `json:"jobsInQueue"`
-}
+var (
+	requestsIn = metrics.NewCounter("requests_in")
+)
 
 func NewWebServer(pool *worker.Pool) *WebServer {
 	ws := &WebServer{
@@ -40,12 +38,16 @@ func NewWebServer(pool *worker.Pool) *WebServer {
 		ctx.Error("Internal Server Error", 500)
 	}
 	r.POST("/post/http", httpJob.WebHandler(pool))
-	r.GET("/status", ws.handleStatus)
-	r.HandleMethodNotAllowed = true
+	r.GET("/metrics", ws.handleMetrics)
+
+	handler := func(ctx *fasthttp.RequestCtx) {
+		requestsIn.Inc()
+		r.Handler(ctx)
+	}
 
 	ws.server = &fasthttp.Server{
 		Name:              "bwp",
-		Handler:           r.Handler,
+		Handler:           handler,
 		ReduceMemoryUsage: true,
 		WriteTimeout:      10 * time.Second,
 		ReadTimeout:       10 * time.Second,
@@ -83,14 +85,8 @@ func (ws *WebServer) Finish() {
 	}
 }
 
-func (ws *WebServer) handleStatus(ctx *fasthttp.RequestCtx) {
+func (ws *WebServer) handleMetrics(ctx *fasthttp.RequestCtx) {
+	requestsIn.Dec()
 	ctx.SetStatusCode(200)
-	ctx.SetContentType("application/json")
-	body, _ := json.Marshal(statusResponse{
-		QueueLimit:    ws.pool.QueueSize,
-		Workers:       ws.pool.Size,
-		ActiveWorkers: ws.pool.GetActiveWorkers(),
-		JobsInQueue:   ws.pool.GetQueueLength(),
-	})
-	ctx.SetBody(body)
+	metrics.WritePrometheus(ctx, true)
 }
