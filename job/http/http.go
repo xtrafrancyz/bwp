@@ -6,41 +6,35 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fasthttp"
 	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/worker"
 )
 
 type requestData struct {
-	url        string
-	method     string
-	body       []byte
-	parameters map[string]string
-	headers    map[string]string
-	clones     []*requestData
+	url         string
+	method      string
+	body        []byte
+	parameters  map[string]string
+	headers     map[string]string
+	hostMetrics bool
+	clones      []*requestData
 }
 
 type jobHandler struct {
 	router          *iprouter.IpRouter
 	client          *fasthttp.Client
 	log4xxResponses bool
+	timeoutsByHost  *byHostMetric
+	errorsByHost    *byHostMetric
 }
-
-var (
-	mRequestsOut = metrics.NewCounter("http_requests")
-	m2xx         = metrics.NewCounter(`http_status{code="2xx"}`)
-	m3xx         = metrics.NewCounter(`http_status{code="3xx"}`)
-	m4xx         = metrics.NewCounter(`http_status{code="4xx"}`)
-	m5xx         = metrics.NewCounter(`http_status{code="5xx"}`)
-	mTimeouts    = metrics.NewCounter(`http_timeouts`)
-	mErrors      = metrics.NewCounter(`http_error`)
-)
 
 func NewJobHandler(router *iprouter.IpRouter, log4xxResponses bool) worker.JobHandler {
 	h := &jobHandler{
 		router:          router,
 		log4xxResponses: log4xxResponses,
+		timeoutsByHost:  newByHostMetric("http_timeouts_by_host"),
+		errorsByHost:    newByHostMetric("http_errors_by_host"),
 	}
 	h.client = &fasthttp.Client{
 		Name:                "bwp (github.com/xtrafrancyz/bwp)",
@@ -122,6 +116,15 @@ func (h *jobHandler) handle(input interface{}) error {
 		log.Printf("http: %v %v %v %v %v", elapsed, data.method, data.url, code, len(res.Body()))
 	}
 
+	// Metrics
+	if data.hostMetrics {
+		if err == fasthttp.ErrTimeout || err == fasthttp.ErrDialTimeout {
+			h.timeoutsByHost.inc(string(req.Host()))
+		} else if err != nil || code >= 400 {
+			h.errorsByHost.inc(string(req.Host()))
+		}
+	}
+
 	mRequestsOut.Inc()
 	if code >= 500 {
 		m5xx.Inc()
@@ -155,6 +158,7 @@ func releaseRequestData(v *requestData) {
 	v.method = ""
 	v.parameters = nil
 	v.body = nil
+	v.hostMetrics = false
 	v.clones = nil
 	requestDataPool.Put(v)
 }

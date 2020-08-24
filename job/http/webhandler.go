@@ -147,6 +147,8 @@ func unmarshalRequestData(iter *jsoniter.Iterator, root bool) (*requestData, err
 			for name := iter.ReadObject(); name != ""; name = iter.ReadObject() {
 				data.headers[name] = iter.ReadString()
 			}
+		case "hostMetrics":
+			data.hostMetrics = iter.ReadBool()
 		case "clones":
 			if !root {
 				return nil, errors.New("invalid request, clones can exists only on root request")
