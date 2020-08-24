@@ -114,6 +114,10 @@ func (h *webHandler) submitJob(data *requestData) error {
 				c.method = data.method
 			}
 
+			if data.hostMetrics {
+				c.hostMetrics = true
+			}
+
 			if err := h.pool.AddJob("http", c); err != nil {
 				return err
 			}
