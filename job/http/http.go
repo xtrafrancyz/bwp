@@ -91,7 +91,7 @@ func (h *jobHandler) handle(input interface{}) error {
 		res.SkipBody = true
 	}
 
-	err := h.client.DoTimeout(req, res, 10*time.Second)
+	err := h.client.Do(req, res)
 	elapsed := time.Since(start).Round(100 * time.Microsecond)
 
 	code := res.StatusCode()
