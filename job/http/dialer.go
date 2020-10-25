@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net"
 	"strconv"
@@ -27,11 +28,6 @@ type tcpAddrEntry struct {
 	pending     bool
 }
 
-type dialResult struct {
-	conn net.Conn
-	err  error
-}
-
 // Dial function is copied from fasthttp/tcpdialer
 func (h *jobHandler) dialTcp(addr string) (net.Conn, error) {
 	addrs, idx, err := h.getTCPAddrs(addr)
@@ -56,30 +52,16 @@ func (h *jobHandler) dialTcp(addr string) (net.Conn, error) {
 }
 
 func (h *jobHandler) tryDial(network string, addr *net.TCPAddr, deadline time.Time) (net.Conn, error) {
-	timeout := -time.Since(deadline)
-	if timeout <= 0 {
+	if -time.Since(deadline) <= 0 {
 		return nil, fasthttp.ErrDialTimeout
 	}
 
-	ch := make(chan dialResult, 1)
-	go func() {
-		var dr dialResult
-		dr.conn, dr.err = net.DialTCP(network, h.router.GetRoute(addr), addr)
-		ch <- dr
-	}()
-
-	var (
-		conn net.Conn
-		err  error
-	)
-
-	tc := time.NewTimer(timeout)
-	select {
-	case dr := <-ch:
-		conn = dr.conn
-		err = dr.err
-	case <-tc.C:
-		err = fasthttp.ErrDialTimeout
+	dialer := net.Dialer{LocalAddr: h.router.GetRoute(addr)}
+	ctx, cancelCtx := context.WithDeadline(context.Background(), deadline)
+	defer cancelCtx()
+	conn, err := dialer.DialContext(ctx, network, addr.String())
+	if err != nil && ctx.Err() == context.DeadlineExceeded {
+		return nil, fasthttp.ErrDialTimeout
 	}
 
 	return conn, err

@@ -28,7 +28,7 @@ func newByHostMetric(name string) *byHostMetric {
 		cache: ttlcache.NewCache(),
 	}
 	m.cache.SkipTTLExtensionOnHit(false)
-	_ = m.cache.SetTTL(time.Hour * 12)
+	_ = m.cache.SetTTL(time.Hour)
 	m.cache.SetLoaderFunction(func(host string) (data interface{}, ttl time.Duration, err error) {
 		return metrics.NewCounter(m.getMetricName(host)), 0, nil
 	})
