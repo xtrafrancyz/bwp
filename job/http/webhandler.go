@@ -162,6 +162,7 @@ func unmarshalRequestData(iter *jsoniter.Iterator, root bool) (*requestData, err
 			buffer.B = buffer.B[0:neededLen]
 			read, err := base64.StdEncoding.Decode(buffer.B, bodySlice)
 			if err != nil {
+				bytebufferpool.Put(buffer)
 				return nil, errors.New("invalid request, body must be base64 encoded")
 			}
 			buffer.B = buffer.B[0:read]

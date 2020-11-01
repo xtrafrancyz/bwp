@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -34,7 +35,7 @@ func NewWebServer(pool *worker.Pool) *WebServer {
 
 	r := router.New()
 	r.PanicHandler = func(ctx *fasthttp.RequestCtx, val interface{}) {
-		log.Println("panic:", val)
+		log.Println("panic:", val, "\n", string(debug.Stack()))
 		ctx.Error("Internal Server Error", 500)
 	}
 	r.POST("/post/http", httpJob.WebHandler(pool))
