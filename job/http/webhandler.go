@@ -89,17 +89,25 @@ func (h *webHandler) submitJob(data *requestData) error {
 		defer releaseRequestData(data)
 		for _, c := range data.clones {
 			// Copy parameters
-			for k, v := range data.parameters {
-				if _, ok := c.parameters[k]; !ok {
-					c.parameters[k] = v
+			if c.parameters != nil {
+				for k, v := range data.parameters {
+					if _, ok := c.parameters[k]; !ok {
+						c.parameters[k] = v
+					}
 				}
+			} else {
+				c.parameters = data.parameters
 			}
 
 			// Copy headers
-			for k, v := range data.headers {
-				if _, ok := c.headers[k]; !ok {
-					c.headers[k] = v
+			if c.headers != nil {
+				for k, v := range data.headers {
+					if _, ok := c.headers[k]; !ok {
+						c.headers[k] = v
+					}
 				}
+			} else {
+				c.headers = data.headers
 			}
 
 			if len(c.body) == 0 {
