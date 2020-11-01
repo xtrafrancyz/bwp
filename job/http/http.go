@@ -37,7 +37,7 @@ func NewJobHandler(router *iprouter.IpRouter, log4xxResponses bool) worker.JobHa
 		errorsByHost:    newByHostMetric("http_errors_by_host"),
 	}
 	h.client = &fasthttp.Client{
-		Name:                "bwp (github.com/xtrafrancyz/bwp)",
+		Name:                "bwp/1.0 (+https://github.com/xtrafrancyz/bwp)",
 		Dial:                h.dialTcp,
 		ReadTimeout:         10 * time.Second,
 		WriteTimeout:        3 * time.Second,
