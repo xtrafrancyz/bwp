@@ -12,6 +12,7 @@ require (
 	github.com/facebookgo/subset v0.0.0-20150612182917-8dac2c3c4870 // indirect
 	github.com/fasthttp/router v1.3.1
 	github.com/json-iterator/go v1.1.10
+	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fasthttp v1.16.0
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
 )

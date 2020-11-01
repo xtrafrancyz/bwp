@@ -4,8 +4,10 @@ import (
 	"log"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/worker"
@@ -14,11 +16,13 @@ import (
 type requestData struct {
 	url         string
 	method      string
-	body        []byte
+	body        *bytebufferpool.ByteBuffer
 	parameters  map[string]string
 	headers     map[string]string
 	hostMetrics bool
 	clones      []*requestData
+
+	bodyReleaseCounter *int32
 }
 
 type jobHandler struct {
@@ -76,7 +80,7 @@ func (h *jobHandler) handle(input interface{}) error {
 		}
 	}
 	if data.body != nil {
-		req.SetBody(data.body)
+		req.SetBody(data.body.B)
 	} else if data.parameters != nil {
 		query := ""
 		for name, value := range data.parameters {
@@ -153,11 +157,17 @@ func acquireRequestData() *requestData {
 }
 
 func releaseRequestData(v *requestData) {
+	if v.body != nil {
+		if atomic.AddInt32(v.bodyReleaseCounter, -1) == 0 {
+			bytebufferpool.Put(v.body)
+		}
+	}
 	v.url = ""
 	v.headers = nil
 	v.method = ""
 	v.parameters = nil
 	v.body = nil
+	v.bodyReleaseCounter = nil
 	v.hostMetrics = false
 	v.clones = nil
 	requestDataPool.Put(v)

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/json-iterator/go"
+	"github.com/valyala/bytebufferpool"
 	"github.com/valyala/fasthttp"
 	"github.com/xtrafrancyz/bwp/worker"
 )
@@ -87,6 +88,11 @@ func (h *webHandler) handlePostHttp(ctx *fasthttp.RequestCtx) {
 func (h *webHandler) submitJob(data *requestData) error {
 	if len(data.clones) > 0 {
 		defer releaseRequestData(data)
+
+		if data.body != nil {
+			*data.bodyReleaseCounter += int32(len(data.clones))
+		}
+
 		for _, c := range data.clones {
 			// Copy parameters
 			if c.parameters != nil {
@@ -110,8 +116,9 @@ func (h *webHandler) submitJob(data *requestData) error {
 				c.headers = data.headers
 			}
 
-			if len(c.body) == 0 {
+			if c.body == nil {
 				c.body = data.body
+				c.bodyReleaseCounter = data.bodyReleaseCounter
 			}
 
 			if c.url == "" {
@@ -144,11 +151,24 @@ func unmarshalRequestData(iter *jsoniter.Iterator, root bool) (*requestData, err
 		case "method":
 			data.method = iter.ReadString()
 		case "body":
-			rawBody, err := base64.StdEncoding.DecodeString(iter.ReadString())
+			buffer := bytebufferpool.Get()
+
+			// ReadStringAsSlice returns a slice with no string escaping. This is ok because the body is base64.
+			bodySlice := iter.ReadStringAsSlice()
+			neededLen := base64.StdEncoding.DecodedLen(len(bodySlice))
+			if cap(buffer.B) < neededLen {
+				buffer.B = append(buffer.B, make([]byte, neededLen-cap(buffer.B))...)
+			}
+			buffer.B = buffer.B[0:neededLen]
+			read, err := base64.StdEncoding.Decode(buffer.B, bodySlice)
 			if err != nil {
 				return nil, errors.New("invalid request, body must be base64 encoded")
 			}
-			data.body = rawBody
+			buffer.B = buffer.B[0:read]
+
+			data.body = buffer
+			data.bodyReleaseCounter = new(int32)
+			*data.bodyReleaseCounter = 1
 		case "parameters":
 			data.parameters = make(map[string]string)
 			for name := iter.ReadObject(); name != ""; name = iter.ReadObject() {
