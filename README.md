@@ -46,7 +46,7 @@ There is another way to send multiple requests:
 As a result of the above request, bwp will send 2 http requests to `https://first-secret-domain.com` and `https://second-secret-domain.com`
 with the same body from the parent request.
 
-#### `GET /status` -- Get pool status (active workers, queue length, etc.)
+#### `GET /metrics` -- Prometheus metrics page
 
 
 ## Configuration
