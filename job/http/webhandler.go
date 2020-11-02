@@ -157,7 +157,7 @@ func unmarshalRequestData(iter *jsoniter.Iterator, root bool) (*requestData, err
 			bodySlice := iter.ReadStringAsSlice()
 			neededLen := base64.StdEncoding.DecodedLen(len(bodySlice))
 			if cap(buffer.B) < neededLen {
-				buffer.B = append(buffer.B, make([]byte, neededLen-cap(buffer.B))...)
+				buffer.B = append(buffer.B[0:cap(buffer.B)], make([]byte, neededLen-cap(buffer.B))...)
 			}
 			buffer.B = buffer.B[0:neededLen]
 			read, err := base64.StdEncoding.Decode(buffer.B, bodySlice)
