@@ -15,6 +15,8 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/facebookarchive/grace/gracenet"
 	"github.com/json-iterator/go"
+	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/pprofhandler"
 	"github.com/vharitonsky/iniflags"
 	"github.com/xtrafrancyz/bwp/iprouter"
 	"github.com/xtrafrancyz/bwp/job"
@@ -37,8 +39,19 @@ func main() {
 	poolQueueSize := flag.Int("pool-queue-size", 10000, "max number of queued jobs")
 	ipRoutes := flag.String("ip-routes", "", "custom ip routing (example: 172.16.0.0/12 -> 172.16.1.1, 0.0.0.0/0 -> auto)")
 	log4xxResponses := flag.Bool("log4xxResponses", false, "log http responses with status code >= 400")
+	pprofHost := flag.String("pprof-bind", "", "address to bind pprof handler (like 127.0.0.1:7777)")
 
 	iniflags.Parse()
+
+	if *pprofHost != "" {
+		go func() {
+			log.Printf("Starting pprof server on http://%s", *pprofHost)
+			err := fasthttp.ListenAndServe(*pprofHost, pprofhandler.PprofHandler)
+			if err != nil {
+				log.Fatalf("Could not start pprof server: %s", err)
+			}
+		}()
+	}
 
 	ipRouter, err := iprouter.New(*ipRoutes)
 	if err != nil {
