@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/facebookarchive/grace/gracenet"
-	"github.com/json-iterator/go"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/pprofhandler"
 	"github.com/vharitonsky/iniflags"
@@ -24,11 +22,9 @@ import (
 	"github.com/xtrafrancyz/bwp/worker"
 )
 
-//noinspection GoUnusedGlobalVariable
 var (
-	json = jsoniter.ConfigFastest
 	// Is the program started from the facebookgo/grace
-	didInherit = os.Getenv("LISTEN_FDS") != ""
+	_ = os.Getenv("LISTEN_FDS") != ""
 
 	pidfile = flag.String("pidfile", "", "path to pid file")
 )
@@ -55,8 +51,7 @@ func main() {
 
 	ipRouter, err := iprouter.New(*ipRoutes)
 	if err != nil {
-		println(err.Error())
-		return
+		log.Fatalln(err)
 	}
 	if ipRouter != iprouter.Default {
 		log.Println("Using routes:", ipRouter)
@@ -106,7 +101,7 @@ func waitForSignals(ws *WebServer, pool *worker.Pool, gnet *gracenet.Net) {
 	stopChan := make(chan os.Signal, 2)
 	reloadChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
-	if runtime.GOOS == "linux" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "386") {
+	if runtime.GOOS == "linux" {
 		signal.Notify(reloadChan, syscall.Signal(12)) // SIGUSR2
 	}
 	shutdown := false
@@ -147,5 +142,5 @@ func writePidFile(pidfile string) error {
 	if err := os.MkdirAll(filepath.Dir(pidfile), os.FileMode(0755)); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(pidfile, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
+	return os.WriteFile(pidfile, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
 }

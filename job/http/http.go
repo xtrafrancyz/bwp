@@ -50,7 +50,7 @@ func NewJobHandler(router *iprouter.IpRouter, log4xxResponses bool) worker.JobHa
 	return h.handle
 }
 
-func (h *jobHandler) handle(input interface{}) error {
+func (h *jobHandler) handle(input any) error {
 	data := input.(*requestData)
 	start := time.Now()
 

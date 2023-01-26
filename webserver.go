@@ -34,7 +34,7 @@ func NewWebServer(pool *worker.Pool) *WebServer {
 	}
 
 	r := router.New()
-	r.PanicHandler = func(ctx *fasthttp.RequestCtx, val interface{}) {
+	r.PanicHandler = func(ctx *fasthttp.RequestCtx, val any) {
 		log.Println("panic:", val, "\n", string(debug.Stack()))
 		ctx.Error("Internal Server Error", 500)
 	}

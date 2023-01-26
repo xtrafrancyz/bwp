@@ -28,10 +28,10 @@ type Pool struct {
 
 type job struct {
 	action string
-	data   interface{}
+	data   any
 }
 
-type JobHandler = func(interface{}) error
+type JobHandler = func(any) error
 
 func (p *Pool) Init() {
 	p.handlers = make(map[string]JobHandler)
@@ -64,7 +64,7 @@ func (p *Pool) RegisterAction(action string, handler JobHandler) {
 	p.handlers[action] = handler
 }
 
-func (p *Pool) AddJob(action string, data interface{}) error {
+func (p *Pool) AddJob(action string, data any) error {
 	if p.finish {
 		return ErrPoolClosed
 	}

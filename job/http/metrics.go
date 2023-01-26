@@ -29,10 +29,10 @@ func newByHostMetric(name string) *byHostMetric {
 	}
 	m.cache.SkipTTLExtensionOnHit(false)
 	_ = m.cache.SetTTL(time.Hour)
-	m.cache.SetLoaderFunction(func(host string) (data interface{}, ttl time.Duration, err error) {
+	m.cache.SetLoaderFunction(func(host string) (data any, ttl time.Duration, err error) {
 		return metrics.NewCounter(m.getMetricName(host)), 0, nil
 	})
-	m.cache.SetExpirationCallback(func(host string, counter interface{}) {
+	m.cache.SetExpirationCallback(func(host string, counter any) {
 		metrics.UnregisterMetric(m.getMetricName(host))
 	})
 	return m

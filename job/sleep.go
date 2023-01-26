@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func HandleSleep(data interface{}) error {
+func HandleSleep(data any) error {
 	log.Println("Sleeping...")
 	time.Sleep(data.(time.Duration))
 	log.Println("Ready!")

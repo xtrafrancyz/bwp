@@ -25,14 +25,13 @@ var (
 func (h *webHandler) handlePostHttp(ctx *fasthttp.RequestCtx) {
 	body := ctx.Request.Body()
 	if value := ctx.Request.Header.Peek(fasthttp.HeaderContentEncoding); value != nil {
-		enc := string(value)
 		var err error
-		if enc == "gzip" {
+		if string(value) == "gzip" {
 			if body, err = ctx.Request.BodyGunzip(); err != nil {
 				ctx.Error(err.Error(), 400)
 				return
 			}
-		} else if enc == "deflate" {
+		} else if string(value) == "deflate" {
 			if body, err = ctx.Request.BodyInflate(); err != nil {
 				ctx.Error(err.Error(), 400)
 				return
